@@ -2,6 +2,7 @@ import rospy
 from Queue import Queue
 import numpy as np
 import pprint
+import matplotlib.pyplot as plt
 
 class Point(object):
 
@@ -130,6 +131,20 @@ class Grid(object):
                 print('Tile (' + str(i) + ', ' + str(j) + '): ')
                 self.grid[j][i].printMe()
 
+    def toggleTile(self, x, y, value):
+        
+        if(self.grid[x][y].hasD()):
+            self.grid[x+1][y].setU(value)
+        
+        if(self.grid[x][y].hasU()):
+	    self.grid[x-1][y].setD(value)
+        
+        if(self.grid[x][y].hasR()):
+		self.grid[x][y+1].setL(value)
+        
+        if(self.grid[x][y].hasL()):
+            self.grid[x][y-1].setR(value)
+
     def dijkstra(self, start_x, start_y):
         
         nodes = Queue()
@@ -162,6 +177,7 @@ class Grid(object):
                 x_coord = this_pt.getX() - 1
                 y_coord = this_pt.getY()
  
+
                 if( costGrid[x_coord][y_coord] > this_cost + 1 ):
 
                     # Update parent grid
@@ -228,18 +244,55 @@ class Grid(object):
                     nodes.put( Point(x_coord, y_coord) )
 
 
+def visualization(parentGrid):
+    width = np.shape(parentGrid)[1]
+    height = np.shape(parentGrid)[0]
+    fig, ax = plt.subplots()
+    ax.set_xticks(np.arange(0, width, 1))
+    ax.set_yticks(np.arange(-height, 0, 1))
+    x_pos = []
+    y_pos = []
+    x_direct = []
+    y_direct = []
+    for i in range(height):
+        for j in range(width):
+            curr = parentGrid[i][j]
+            x_pos += [j+0.5]
+            y_pos += [-i-0.5]
+            if curr.getY() == j:
+                if curr.getX()<i:
+                    x_direct+=[0]
+                    y_direct+=[1]
+                else:
+                    x_direct+=[0]
+                    y_direct+=[-1]
+            else:
+                if curr.getY()>j:
+                    x_direct+=[1]
+                    y_direct+=[0]
+                else:
+                    x_direct+=[-1]
+                    y_direct+=[0]
+    ax.quiver(x_pos,y_pos,x_direct,y_direct)
+    plt.grid()
+    plt.title('Optimal Path')
+    plt.show()
+
 def main():
-    
+
     grid = Grid()
     grid.printGrid()
 
-    grid.dijkstra(2, 1)
+    grid.toggleTile(2,2,False)
+    grid.toggleTile(2,3,False)
+    grid.toggleTile(2,1,False)
+
+    grid.dijkstra(3,3)
 
     for row in grid.parentGrid:
         for pt in row:
             print( "(" + str(pt.getX()) + ", " + str(pt.getY()) + ")" )
-    #userInput = 'o'
-
+    visualization(grid.parentGrid)
     """
     while( userInput != 'x' )
 
