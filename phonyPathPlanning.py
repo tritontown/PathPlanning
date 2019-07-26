@@ -2,7 +2,6 @@ import rospy
 from Queue import Queue
 import numpy as np
 import pprint
-import matplotlib.pyplot as plt
 
 class Point(object):
 
@@ -25,44 +24,55 @@ class Point(object):
     
     def getY(self):
         return self.y
+    
+    def printMe(self):
+        print ( "(" + str(self.x) + ", " + str(self.y) + ")" )
 
 class PhonyCar(object):
 
-    def __init__(self):
+    def __init__(self, x = 0, y = 0):
         
         self.location = Point()
-        self.location.setX(0)
-        self.location.setY(3)
+        self.location.setPt(x, y)
+
+        self.dirStack = []
 
     #TODO: Change values of array indexes
 
     def moveU(self):
-        if(self.location[1] + 1 > 3):
+        if(self.location.getX() - 1 < 0):
             print("Too far up! Outside of track boundary.")
         else:
-            self.location[1] += 1
+            self.location.setX( self.location.getX() - 1 )
 
     def moveD(self):
-        if(self.location[1] - 1 < 0):
+        if(self.location.getX() + 1 > 3):
             print("Too far down! Outside of track boundary.")
         else:
-            self.location[1] -= 1
+            self.location.setX( self.location.getX() + 1 )
 
     def moveR(self):
-        if(self.location[0] + 1 > 3):
+        if(self.location.getY() + 1 > 3):
             print("Too far right! Outside of track boundary.")
         else:
-            self.location[0] += 1
-
+            self.location.setY( self.location.getY() + 1 )
 
     def moveL(self):
-        if(self.location[0] - 1 < 0):
+        if(self.location.getY() - 1 < 0):
             print("Too far left! Outside of track boundary.")
         else:
-            self.location[0] -= 1
+            self.location.setY( self.location.getY() - 1 )
 
     def getLoc(self):
         return self.location
+
+    def pushDir(self, instr):
+        self.dirStack.append(instr)
+
+    def popDir(self):
+        return self.dirStack.pop()
+
+    
         
 
 class Tile(object):
@@ -131,20 +141,6 @@ class Grid(object):
                 print('Tile (' + str(i) + ', ' + str(j) + '): ')
                 self.grid[j][i].printMe()
 
-    def toggleTile(self, x, y, value):
-        
-        if(self.grid[x][y].hasD()):
-            self.grid[x+1][y].setU(value)
-        
-        if(self.grid[x][y].hasU()):
-	    self.grid[x-1][y].setD(value)
-        
-        if(self.grid[x][y].hasR()):
-		self.grid[x][y+1].setL(value)
-        
-        if(self.grid[x][y].hasL()):
-            self.grid[x][y-1].setR(value)
-
     def dijkstra(self, start_x, start_y):
         
         nodes = Queue()
@@ -158,7 +154,8 @@ class Grid(object):
 
         start = Point()
         start.setPt( start_x, start_y )
-            
+           
+        self.parentGrid[start_x][start_y].setPt(start_x, start_y)
         costGrid[start_x][start_y] = 0
         
         nodes.put(start)
@@ -177,7 +174,6 @@ class Grid(object):
                 x_coord = this_pt.getX() - 1
                 y_coord = this_pt.getY()
  
-
                 if( costGrid[x_coord][y_coord] > this_cost + 1 ):
 
                     # Update parent grid
@@ -243,56 +239,54 @@ class Grid(object):
                     # Push found neighbor
                     nodes.put( Point(x_coord, y_coord) )
 
+    def createDirStack(self, destination):
 
-def visualization(parentGrid):
-    width = np.shape(parentGrid)[1]
-    height = np.shape(parentGrid)[0]
-    fig, ax = plt.subplots()
-    ax.set_xticks(np.arange(0, width, 1))
-    ax.set_yticks(np.arange(-height, 0, 1))
-    x_pos = []
-    y_pos = []
-    x_direct = []
-    y_direct = []
-    for i in range(height):
-        for j in range(width):
-            curr = parentGrid[i][j]
-            x_pos += [j+0.5]
-            y_pos += [-i-0.5]
-            if curr.getY() == j:
-                if curr.getX()<i:
-                    x_direct+=[0]
-                    y_direct+=[1]
-                else:
-                    x_direct+=[0]
-                    y_direct+=[-1]
+        dirStack = []
+
+        dirStack.append(destination)
+
+        dest_x = destination.getX()
+        dest_y = destination.getY()
+
+        nextPt = Point()
+
+
+        while(True):
+            nextPt = self.parentGrid[dest_x][dest_y]
+                
+            if( nextPt.getX() == dest_x and nextPt.getY() == dest_y ):
+                break
             else:
-                if curr.getY()>j:
-                    x_direct+=[1]
-                    y_direct+=[0]
-                else:
-                    x_direct+=[-1]
-                    y_direct+=[0]
-    ax.quiver(x_pos,y_pos,x_direct,y_direct)
-    plt.grid()
-    plt.title('Optimal Path')
-    plt.show()
+                dirStack.append(nextPt)
+                dest_x = nextPt.getX()
+                dest_y = nextPt.getY()
+
+        return dirStack
+
+
 
 def main():
-
+    
     grid = Grid()
     grid.printGrid()
 
-    grid.toggleTile(2,2,False)
-    grid.toggleTile(2,3,False)
-    grid.toggleTile(2,1,False)
+    grid.dijkstra(2, 1)
 
-    grid.dijkstra(3,3)
+    destination = Point(3, 3)
+    
+    
+    dirStack = grid.createDirStack(destination)
 
+    for point in dirStack:
+        point.printMe()
+    
+
+    """
     for row in grid.parentGrid:
         for pt in row:
             print( "(" + str(pt.getX()) + ", " + str(pt.getY()) + ")" )
-    visualization(grid.parentGrid)
+    #userInput = 'o'
+    """
     """
     while( userInput != 'x' )
 
